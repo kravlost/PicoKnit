@@ -62,18 +62,24 @@ def stitch_count(rows):
     return 6+int((9+rows)/10)
 
 
+
+
 def read_vsys():
     '''
     read_vsys reads the voltage on Vsys and returns it
     
     :return: The voltage on Vsys 
     '''
-    Pin(25, Pin.OUT, value=1)
-    Pin(29, Pin.IN, pull=None)
-    reading = ADC(3).read_u16() * 9.9 / 2**16
-    Pin(25, Pin.OUT, value=0, pull=Pin.PULL_DOWN)
-    Pin(29, Pin.ALT, pull=Pin.PULL_DOWN, alt=7)
-    return reading
+    wl_cs = machine.Pin(25) # WiFi chip SDIO_DATA3 / gate on FET between VSYS divider (FET drain) and GPIO29 (FET source)
+    print("Initial WL_CS (GPIO25) state:{}".format(wl_cs))
+    wl_cs.init(mode=machine.Pin.OUT, value=1)
+    pin = machine.ADC(29)
+    adc_reading  = pin.read_u16()
+    adc_voltage  = (adc_reading * 3.3) / 65535
+    vsys_voltage = adc_voltage * 3
+    wl_cs.init(mode=machine.Pin.OUT, value=0)
+    print("vsys ",vsys_voltage)
+    return vsys_voltage
 
 
 def low_battery_shutdown(display):
@@ -191,7 +197,11 @@ bottomrow=56
 rows = load()
 
 # read battery
-vsys = read_vsys()
+i=0
+while i < 5:
+    vsys = read_vsys()
+    time.sleep_ms(100)
+    i = i + 1
 
 # If LiPo battery detected on Vsys (max 4.2V) use machine.lightsleep()
 # as it saves power over time.sleep(). Disable lightsleep if on
